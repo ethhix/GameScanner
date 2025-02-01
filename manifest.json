@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Game Scanner",
+  "version": "1.0",
+  "description": "Hover over a game title on Twitch to see its details.",
+  "permissions": ["tabs", "activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://store.steampowered.com/*",
+    "https://api.twitch.tv/*",
+    "https://api.igdb.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.twitch.tv/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "assets/icons/xbox-icon.png",
+        "assets/icons/windows-icon.png",
+        "assets/icons/playstation-icon.png",
+        "assets/icons/nintendo-icon.png",
+        "assets/icons/apple-icon.png",
+        "assets/icons/linux-icon.png"
+      ],
+      "matches": ["https://www.twitch.tv/*"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "32": "assets/icons/icon32.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "32": "assets/icons/icon32.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
