@@ -12,8 +12,26 @@ const gameData = {
 
 const websiteIDs = [1, 13, 16, 17];
 
+const romanToNumber = {
+  I: "1",
+  II: "2",
+  III: "3",
+  IV: "4",
+  V: "5",
+  VI: "6",
+  VII: "7",
+  VIII: "8",
+  IX: "9",
+  X: "10",
+  XI: "11",
+  XII: "12",
+  XIII: "13",
+  XIV: "14",
+  XV: "15",
+};
+
 // Normalize game names
-function normalizeGameName(name) {
+function normalizeSteamName(name) {
   return name
     .toLowerCase()
     .replace(/™/g, "")
@@ -22,21 +40,19 @@ function normalizeGameName(name) {
     .trim();
 }
 
-function formatGameTitle(input) {
-  // Lookup table for Roman numerals
-  const romanToInteger = {
-    I: 1,
-    II: 2,
-    III: 3,
-    IV: 4,
-    V: 5,
-    VI: 6,
-    VII: 7,
-    VIII: 8,
-    IX: 9,
-    X: 10,
-  };
+function normalizeGameTitle(title) {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word) => romanToNumber[word] || word)
+    .join(" ");
+}
 
+function formatGameTitleStrict(input) {
+  // Lookup table for Roman numerals
   const cleanedInput = input.replace(/[^a-zA-Z0-9\s]/g, "");
 
   // Convert Roman numerals to integers
@@ -63,7 +79,7 @@ function formatGameTitle(input) {
 
 // Retrieve AppID of requested game
 async function getAppId(gameName) {
-  const name = normalizeGameName(gameName);
+  const name = normalizeSteamName(gameName);
   console.log(name);
   try {
     const response = await fetch(`http://localhost:3001/getAppId/${name}`);
@@ -99,6 +115,7 @@ async function getGameID(gameName) {
     }
 
     const data = await response.json();
+    console.log(data);
 
     // If data is null or not structured properly
     if (!data || !Array.isArray(data)) {
@@ -107,22 +124,14 @@ async function getGameID(gameName) {
     }
 
     // Normalize gameName, remove special characters
-    const normalizedInput = gameName
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
+    const normalizedInput = normalizeGameTitle(gameName);
 
     console.log(normalizedInput);
 
     const candidates = []; // Stores potential gameIds containing valid data
     for (const element of data) {
-      const normalizedElementName = element.name
-        .toLowerCase()
-        .replace(/[^a-z0-9 ]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      //console.log(normalizedElementName + " " + normalizedInput);
+      const normalizedElementName = normalizeGameTitle(element.name);
+      console.log(normalizedElementName + " " + normalizedInput);
       if (
         normalizedElementName === normalizedInput &&
         element.game !== undefined &&
@@ -137,6 +146,13 @@ async function getGameID(gameName) {
     return null;
   }
 }
+
+function getAppIdFromSteamUrl(url) {
+  const regex = /\/app\/(\d+)/;
+  const match = url.match(regex);
+  return match ? match[1] : null;
+}
+
 // Retrieves game details using valid game ids and steam app ids
 async function getGameDetails(gameID, appId) {
   try {
@@ -195,16 +211,44 @@ async function getGameDetails(gameID, appId) {
       });
     }
 
+    let steamURL;
     // Process Websites
     if (igdbData[0].websites) {
       igdbData[0].websites.forEach((website) => {
         if (websiteIDs.includes(website.category)) {
+          if (website.category === 13) {
+            steamURL = website.url;
+          }
           gameData.websites.push({
             id: website.category,
             url: website.url,
           });
         }
       });
+    }
+
+    //console.log(appId + " " + steamURL);
+    if (!appId && steamURL) {
+      const appId = getAppIdFromSteamUrl(steamURL);
+      console.log("Added new appID!");
+      const putAppIdResponse = await fetch("http://localhost:3001/addAppId", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          gameName: igdbData[0].name,
+          appId: appId,
+        }),
+      });
+
+      if (!putAppIdResponse.ok) {
+        console.error("Failed to add AppID:", putAppIdResponse.statusText);
+        return;
+      }
+
+      const responseData = await putAppIdResponse.json();
+      console.log("AppID added successfully:", responseData);
     }
 
     // Process Release Date
@@ -263,10 +307,10 @@ let completedNormalCheck = false; // Normal title check
 // Strict gameID search
 async function getGameIDStrict(gameName) {
   const gameTitle = !completedFormattedCheck
-    ? formatGameTitle(gameName)
+    ? formatGameTitleStrict(gameName)
     : gameName;
 
-  //console.log(gameTitle);
+  console.log(gameTitle);
 
   try {
     const response = await fetch("http://localhost:3000/igdb/search", {
@@ -345,7 +389,7 @@ async function processGame(gameName, appId) {
     console.log(candidates);
     if (!candidates) {
       candidates = await getGameID(gameName);
-      console.log(candidates + " retry attempt");
+      console.log(candidates + " retry attempt " + gameName);
       if (!candidates) {
         return null;
       }
@@ -380,9 +424,10 @@ async function processGame(gameName, appId) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getAppId") {
     console.log("Received request for game:", request.gameName);
-    const appId = getAppId(request.gameName);
-    console.log("Sending AppID:", appId);
-    sendResponse({ appId });
+    getAppId(request.gameName).then((appID) => {
+      console.log("Sending AppID:", appID);
+      sendResponse({ appID });
+    });
     return true;
   } else if (request.action === "getGameData") {
     console.log("Received request for game:", request.gameName);
@@ -392,7 +437,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ gameData });
       });
     });
-
     return true;
   }
 });
