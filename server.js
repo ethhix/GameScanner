@@ -18,7 +18,7 @@ const client = redis.createClient({
 // CORS configuration
 const corsOptions = {
   origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
-  methods: "GET, POST",
+  methods: "GET, POST, PUT",
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
@@ -45,6 +45,32 @@ app.get("/getAppId/:gameName", async (req, res) => {
     console.error("Error fetching appID:", err);
     res.status(500).json({ error: "Internal server error" });
   }
+});
+
+app.put("/addAppId/", async (req, res) => {
+  const { gameName, appId } = req.body;
+
+  if (!gameName || !appId) {
+    return res
+      .status(400)
+      .json({ error: "Both game name and appId are required" });
+  }
+
+  const normalizedGameName = gameName
+    .toLowerCase()
+    .replace(/™/g, "")
+    .replace(/®/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  client.set(normalizedGameName, appId, (err, reply) => {
+    if (err) {
+      console.error("Error storing data in Redis:", err);
+      return res.status(500).json({ error: "Failed to store data in Redis" });
+    }
+    console.log(`Stored game: ${normalizedGameName}, appId: ${appId}`);
+    res.status(200).json({ message: "Game and appId added successfully" });
+  });
 });
 
 const PORT = 3001;
