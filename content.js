@@ -11,6 +11,12 @@ const ignoreGameTitle = [
   "Creative",
   "Software & Game Development",
   "Animals, Aquariums, and Zoos",
+  "Games + Demos",
+  "Retro",
+  "Special Events",
+  "Talk Shows & Podcasts",
+  "Makers & Crafting",
+  "Virtual Casino",
 ];
 
 const validPlatforms = [
@@ -23,6 +29,7 @@ const validPlatforms = [
 ];
 
 const currAppId = 0;
+let isFound = false;
 
 let previousGameTitle = null;
 const hoverContainer = document.createElement("div");
@@ -48,16 +55,14 @@ const nintendoIconUrl = chrome.runtime.getURL(
   "./assets/icons/nintendo-icon.png"
 );
 
-function updateGameInfo(gameData) {
-  if (!gameData || !gameData.name) {
-    //console.log(gameData);
-    hoverContainer.innerHTML = `<strong>Game not found</strong>`;
+function updateGameInfo(gameData, appId, isFound) {
+  if (!gameData || !isFound) {
+    hoverContainer.innerHTML = `<strong>Game Not Found</strong>`;
     return;
   }
-  //console.log(gameData);
 
   let urlLabel = "";
-  const websiteLinks = gameData.websites
+  let websiteLinks = gameData.websites
     .map((website) => {
       urlLabel =
         website.id === 1
@@ -68,9 +73,16 @@ function updateGameInfo(gameData) {
           ? "View Epic Games Link"
           : "View GoG Link";
 
-      return `<p><a href=${website.url} target="_blank">${urlLabel}</a></p>`;
+      return `<p style="margin-right: 5px;"><a href=${website.url} target="_blank">${urlLabel}</a></p>`;
     })
     .join(" ");
+
+  console.log(appId);
+
+  if (!websiteLinks && appId) {
+    const steamLink = `https://store.steampowered.com/app/${appId}/`;
+    websiteLinks = `<p><a href=${steamLink} target="_blank">View Steam Link</a></p>`;
+  }
 
   const filteredIcons = gameData.platforms.filter((platform) => {
     return validPlatforms.some((validPlatform) =>
@@ -131,13 +143,12 @@ function updateGameInfo(gameData) {
 
   // Render the hover container
   hoverContainer.innerHTML = `
-  <div style="display: flex; align-content: center; flex-direction: row; gap: 5px;"><h5><strong>${
-    gameData.name
-  }</strong></h5>${iconContainer.outerHTML}</div>
+    ${iconContainer.outerHTML}
+  <h5><strong>${gameData.name}</strong></h5>
   <p>Price: ${gameData.price}</p>
   <p>Genres: ${gameData.genres.join(", ") || "N/A"}</p>
   <p>Release Date: ${gameData.first_release_date}</p>
-  <div style="display: flex; flex-wrap: wrap; gap: 5px;">${websiteLinks}</div>
+  <div style="display: flex; flex-wrap: wrap;">${websiteLinks}</div>
 `;
 }
 
@@ -148,16 +159,16 @@ function retrieveGameData() {
 
   if (gameTitleElement) {
     const currentGameTitle = gameTitleElement.textContent;
-
     if (currentGameTitle !== previousGameTitle) {
       console.log(`Game title changed: ${currentGameTitle}`);
       previousGameTitle = currentGameTitle;
 
       // Get the AppID for the game
       chrome.runtime.sendMessage(
-        { action: "getAppID", gameName: currentGameTitle },
+        { action: "getAppId", gameName: currentGameTitle },
         (response) => {
-          const appId = response?.appId || null;
+          const appId = response?.appID || null;
+          console.log(appId);
 
           // Get game data regardless of AppID existence
           chrome.runtime.sendMessage(
@@ -172,16 +183,20 @@ function retrieveGameData() {
                 if (!gameDataResponse.gameData.price) {
                   gameDataResponse.gameData.price = "Price unavailable";
                 }
-                updateGameInfo(gameDataResponse.gameData);
+                updateGameInfo(gameDataResponse.gameData, appId, true);
               } else {
                 console.error("Failed to retrieve game data.");
-                updateGameInfo({
-                  name: currentGameTitle,
-                  price: "Price unavailable",
-                  genres: [],
-                  websites: [],
-                  first_release_date: "Unknown",
-                });
+                updateGameInfo(
+                  {
+                    name: currentGameTitle,
+                    price: "Price unavailable",
+                    genres: [],
+                    websites: [],
+                    first_release_date: "Unknown",
+                  },
+                  appId,
+                  false
+                );
               }
             }
           );
