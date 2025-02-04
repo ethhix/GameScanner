@@ -51,15 +51,25 @@ function normalizeGameTitle(title) {
     .join(" ");
 }
 
+function sortGamesAsc(response) {
+  const sortedGames = response.sort((a, b) => {
+    const dateA = a.published_at || 0;
+    const dateB = b.published_at || 0;
+    return dateB - dateA;
+  });
+
+  return sortedGames;
+}
+
 function formatGameTitleStrict(input) {
   // Lookup table for Roman numerals
-  const cleanedInput = input.replace(/[^a-zA-Z0-9\s]/g, "");
+  const cleanedInput = input.replace(/[^a-zA-Z0-9'\s]/g, "");
 
   // Convert Roman numerals to integers
   const formattedInput = cleanedInput.replace(
     /\b(I{1,3}|IV|V|VI{0,3}|IX|X)\b/gi,
     (match) => {
-      return romanToInteger[match.toUpperCase()] || match;
+      return romanToNumber[match.toUpperCase()] || match;
     }
   );
 
@@ -115,7 +125,8 @@ async function getGameID(gameName) {
     }
 
     const data = await response.json();
-    console.log(data);
+
+    const sortedGames = sortGamesAsc(data);
 
     // If data is null or not structured properly
     if (!data || !Array.isArray(data)) {
@@ -126,10 +137,8 @@ async function getGameID(gameName) {
     // Normalize gameName, remove special characters
     const normalizedInput = normalizeGameTitle(gameName);
 
-    console.log(normalizedInput);
-
     const candidates = []; // Stores potential gameIds containing valid data
-    for (const element of data) {
+    for (const element of sortedGames) {
       const normalizedElementName = normalizeGameTitle(element.name);
       console.log(normalizedElementName + " " + normalizedInput);
       if (
@@ -205,6 +214,7 @@ async function getGameDetails(gameID, appId) {
       });
     }
 
+    // Process Platforms
     if (igdbData[0].platforms) {
       igdbData[0].platforms.forEach((platform) => {
         gameData.platforms.push(platform.name);
@@ -225,9 +235,15 @@ async function getGameDetails(gameID, appId) {
           });
         }
       });
+      if (!steamURL && appId) {
+        gameData.websites.push({
+          id: 13,
+          url: `https://store.steampowered.com/app/${appId}/`,
+        });
+      }
     }
 
-    //console.log(appId + " " + steamURL);
+    console.log(appId + " " + steamURL);
     if (!appId && steamURL) {
       const appId = getAppIdFromSteamUrl(steamURL);
       console.log("Added new appID!");
@@ -288,8 +304,19 @@ async function checkResponse(game) {
       return false;
     }
 
+    let websiteCheck = false;
+
+    if (data[0].websites) {
+      for (let i = 0; i < data[0].websites.length; i++) {
+        if (websiteIDs.includes(data[0].websites[i].category)) {
+          websiteCheck = true;
+          break;
+        }
+      }
+    }
+
     // If data does not contain some information, ignore it
-    if (!data[0] || !data[0].name || !data[0].genres || !data[0].websites) {
+    if (!data[0] || !data[0].name || !data[0].genres || !websiteCheck) {
       ignoreGameList.push(game);
       return false;
     }
@@ -301,16 +328,17 @@ async function checkResponse(game) {
   }
 }
 
-let completedFormattedCheck = false; // Formatted title check
-let completedNormalCheck = false; // Normal title check
-
 // Strict gameID search
-async function getGameIDStrict(gameName) {
+async function getGameIDStrict(
+  gameName,
+  completedFormattedCheck = false,
+  completedNormalCheck = false
+) {
   const gameTitle = !completedFormattedCheck
     ? formatGameTitleStrict(gameName)
     : gameName;
 
-  console.log(gameTitle);
+  console.log("Game Title:", gameTitle);
 
   try {
     const response = await fetch("http://localhost:3000/igdb/search", {
@@ -319,7 +347,7 @@ async function getGameIDStrict(gameName) {
         Accept: "application/json",
         "Content-Type": "text/plain",
       },
-      body: `fields game, name; where name = "${gameTitle}";`,
+      body: `fields game, name, published_at; where name = "${gameTitle}";`,
     });
 
     if (!response.ok) {
@@ -329,20 +357,13 @@ async function getGameIDStrict(gameName) {
     }
 
     const data = await response.json();
-    console.log(data);
 
-    if ((!data || data.length === 0) && !completedNormalCheck) {
-      if (!completedFormattedCheck) {
-        completedFormattedCheck = true;
-        return getGameIDStrict(gameName);
-      } else {
-        completedNormalCheck = true;
-        return null;
-      }
-    }
+    const sortedGames = sortGamesAsc(data);
+    console.log("Sorted Games:", sortedGames);
 
-    const normalizedInput = completedFormattedCheck
-      ? gameName
+    // Normalize input for comparison
+    const normalizedInput = !completedFormattedCheck
+      ? gameTitle
           .toLowerCase()
           .replace(/[^a-z0-9 ]/g, "")
           .replace(/ii/g, "2")
@@ -352,8 +373,8 @@ async function getGameIDStrict(gameName) {
       : gameTitle;
 
     const candidates = [];
-    for (const element of data) {
-      const normalizedElementName = completedFormattedCheck
+    for (const element of sortedGames) {
+      const normalizedElementName = !completedFormattedCheck
         ? element.name
             .toLowerCase()
             .replace(/[^a-z0-9 ]/g, "")
@@ -363,7 +384,7 @@ async function getGameIDStrict(gameName) {
             .trim()
         : element.name;
 
-      //console.log(normalizedElementName + " " + normalizedInput);
+      console.log("Comparing:", normalizedElementName, "vs", normalizedInput);
 
       if (
         normalizedElementName === normalizedInput &&
@@ -374,18 +395,36 @@ async function getGameIDStrict(gameName) {
       }
     }
 
+    console.log("Candidates:", candidates);
+
+    // Candidates are not found
+    if (candidates.length === 0) {
+      if (!completedFormattedCheck) {
+        console.log(
+          "No candidates found with formatted check. Retrying with normal check..."
+        );
+        return getGameIDStrict(gameName, true, false);
+      } else if (!completedNormalCheck) {
+        // Run function again with not formatting
+        console.log(
+          "No candidates found with normal check. Retrying without formatting..."
+        );
+        return getGameIDStrict(gameName, true, true);
+      } else {
+        // Both checks completed, return null
+        console.log("No candidates found after both checks.");
+        return null;
+      }
+    }
     return candidates.length > 0 ? candidates : null;
   } catch (err) {
     console.error("Error fetching game ID:", err);
     return null;
   }
 }
-
 async function processGame(gameName, appId) {
   try {
-    let candidates = await getGameIDStrict(gameName);
-    completedFormattedCheck = false;
-    completedNormalCheck = false;
+    let candidates = await getGameIDStrict(gameName, false, false);
     console.log(candidates);
     if (!candidates) {
       candidates = await getGameID(gameName);
@@ -394,8 +433,6 @@ async function processGame(gameName, appId) {
         return null;
       }
     }
-
-    candidates.sort((a, b) => a - b); // Sort gameIds in ascending order
 
     for (const gameID of candidates) {
       const isValid = await checkResponse(gameID);
