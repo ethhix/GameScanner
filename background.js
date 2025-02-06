@@ -10,6 +10,8 @@ const gameData = {
   platforms: [],
 };
 
+const statusButton = document.getElementById("toggleSwitch");
+
 const websiteIDs = [1, 13, 16, 17];
 
 const romanToNumber = {
@@ -51,7 +53,7 @@ function normalizeGameTitle(title) {
     .join(" ");
 }
 
-function sortGamesAsc(response) {
+function sortGamesDsc(response) {
   const sortedGames = response.sort((a, b) => {
     const dateA = a.published_at || 0;
     const dateB = b.published_at || 0;
@@ -126,7 +128,7 @@ async function getGameID(gameName) {
 
     const data = await response.json();
 
-    const sortedGames = sortGamesAsc(data);
+    const sortedGames = sortGamesDsc(data);
 
     // If data is null or not structured properly
     if (!data || !Array.isArray(data)) {
@@ -358,7 +360,7 @@ async function getGameIDStrict(
 
     const data = await response.json();
 
-    const sortedGames = sortGamesAsc(data);
+    const sortedGames = sortGamesDsc(data);
     console.log("Sorted Games:", sortedGames);
 
     // Normalize input for comparison
@@ -459,6 +461,32 @@ async function processGame(gameName, appId) {
 }
 // Listen for messages from content.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "toggleServer") {
+    const { enabled } = request;
+
+    // Determine the endpoint based on the toggle state
+    const endpoint = enabled ? "start-server" : "stop-server";
+
+    // Send requests to both servers in parallel
+    Promise.all([
+      fetch(`http://localhost:4000/${endpoint}`, { method: "POST" }),
+      fetch(`http://localhost:3001/${endpoint}`, { method: "POST" }),
+    ])
+      .then((responses) =>
+        Promise.all(responses.map((response) => response.text()))
+      )
+      .then((data) => {
+        console.log("Bootstrap server response:", data[0]);
+        console.log("Second server response:", data[1]);
+        sendResponse({ success: true, data });
+      })
+      .catch((error) => {
+        console.error("Error toggling servers:", error);
+        sendResponse({ success: false, error: error.message });
+      });
+
+    return true;
+  }
   if (request.action === "getAppId") {
     console.log("Received request for game:", request.gameName);
     getAppId(request.gameName).then((appID) => {
