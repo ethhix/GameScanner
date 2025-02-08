@@ -32,7 +32,7 @@ client
   .then(async () => {
     const isRunning = (await client.get("server:running")) === "true";
     if (isRunning) {
-      server = mainApp.listen(process.env.PROXY_PORT || 3001, () => {
+      proxyServer = mainApp.listen(process.env.PROXY_PORT || 3001, () => {
         console.log("Proxy server auto-started (Redis state was 'running')");
       });
     }
