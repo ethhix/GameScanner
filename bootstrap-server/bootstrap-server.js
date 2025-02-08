@@ -54,15 +54,18 @@ bootstrapApp.post("/start-server", async (req, res) => {
 
 bootstrapApp.post("/stop-server", async (req, res) => {
   if (server) {
-    server.close(async () => {
+    const serverInstance = server;
+
+    serverInstance.closeAllConnections();
+
+    serverInstance.close(async () => {
       await client.set("server:running", "false");
       server = null;
       console.log("Proxy server stopped");
-
-      server.closeAllConnections();
-
       res.send("Server stopped");
     });
+  } else {
+    res.status(400).send("Server not running");
   }
 });
 
