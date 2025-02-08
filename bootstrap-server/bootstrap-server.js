@@ -4,7 +4,7 @@ const cors = require("cors");
 const mainApp = require("./proxy");
 
 const bootstrapApp = express();
-bootstrapApp.use(mainApp);
+
 const client = redis.createClient({
   username: "default", // Default username for Redis
   password: process.env.REDIS_PASSWORD,
@@ -26,7 +26,7 @@ bootstrapApp.use(cors(corsOptions));
 bootstrapApp.options("*", cors());
 
 // Initialize Redis and auto-start proxy if needed
-let server = null;
+let proxyServer = null;
 client
   .connect()
   .then(async () => {
@@ -41,8 +41,8 @@ client
 
 // Start/stop endpoints
 bootstrapApp.post("/start-server", async (req, res) => {
-  if (!server) {
-    server = mainApp.listen(process.env.PROXY_PORT || 3001, async () => {
+  if (!proxyServer) {
+    proxyServer = mainApp.listen(process.env.PROXY_PORT || 3001, async () => {
       await client.set("server:running", "true");
       console.log("Proxy server started");
       res.send("Server started!");
@@ -53,14 +53,14 @@ bootstrapApp.post("/start-server", async (req, res) => {
 });
 
 bootstrapApp.post("/stop-server", async (req, res) => {
-  if (server) {
-    const serverInstance = server;
+  if (proxyServer) {
+    const serverInstance = proxyServer;
 
     serverInstance.closeAllConnections();
 
     serverInstance.close(async () => {
       await client.set("server:running", "false");
-      server = null;
+      proxyServer = null;
       console.log("Proxy server stopped");
       res.send("Server stopped");
     });
@@ -90,9 +90,9 @@ process.on("SIGTERM", shutdown);
 process.on("SIGINT", shutdown);
 
 function shutdown() {
-  if (server) {
+  if (proxyServer) {
     server.close(() => {
-      console.log("Proxy server stopped during shutdown");
+      proxyServer.log("Proxy server stopped during shutdown");
       process.exit(0);
     });
   } else {
