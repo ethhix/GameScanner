@@ -1,4 +1,3 @@
-const targetSite = "https://twitch.tv/";
 const ignoreGameTitle = [
   "Just Chatting",
   "I'm Only Sleeping",
@@ -27,9 +26,7 @@ const validPlatforms = [
   "Linux",
   "Mac",
 ];
-
-const currAppId = 0;
-let isFound = false;
+const statusButton = document.querySelector("#toggleSwitch");
 
 let previousGameTitle = null;
 const hoverContainer = document.createElement("div");
@@ -151,6 +148,60 @@ function updateGameInfo(gameData, appId, isFound) {
   <div style="display: flex; flex-wrap: wrap;">${websiteLinks}</div>
 `;
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const PROXY_MANAGER_URL = "https://gamescanner-extension.onrender.com";
+  const statusButton = document.querySelector("#toggleSwitch");
+
+  if (!statusButton) {
+    console.error("Toggle element not found!");
+    return;
+  }
+
+  // Initial state: disable until we know status
+  statusButton.disabled = true;
+
+  // Fetch server status and update toggle
+  function updateServerStatus() {
+    fetch(`${PROXY_MANAGER_URL}/status`)
+      .then((response) => {
+        if (!response.ok) throw new Error("Server unreachable");
+        return response.json();
+      })
+      .then((data) => {
+        statusButton.checked = data.running;
+        statusButton.disabled = false; // Enable toggle once status is known
+      })
+      .catch((error) => {
+        console.error("Status check failed:", error);
+        statusButton.disabled = true;
+      });
+  }
+
+  // Initial status check
+  updateServerStatus();
+
+  // Toggle handler
+  statusButton.addEventListener("change", (event) => {
+    const enabled = event.target.checked;
+    statusButton.disabled = true; // Disable during transition
+
+    chrome.runtime.sendMessage(
+      { action: "toggleServer", enabled },
+      (response) => {
+        if (response?.success) {
+          // Refresh status after 1 second to confirm
+          setTimeout(updateServerStatus, 1000);
+        } else {
+          console.error("Toggle failed:", response?.error);
+          statusButton.checked = !enabled;
+          statusButton.disabled = true;
+          setTimeout(updateServerStatus, 5000); // Retry after 5 seconds
+        }
+      }
+    );
+  });
+});
 
 function retrieveGameData() {
   const gameTitleElement = document.querySelector(

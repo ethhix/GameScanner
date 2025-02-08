@@ -10,8 +10,6 @@ const gameData = {
   platforms: [],
 };
 
-const statusButton = document.getElementById("toggleSwitch");
-
 const websiteIDs = [1, 13, 16, 17];
 
 const romanToNumber = {
@@ -31,6 +29,9 @@ const romanToNumber = {
   XIV: "14",
   XV: "15",
 };
+
+const PROXY_MANAGER_URL = "https://gamescanner-extension.onrender.com";
+const REDIS_SERVER_URL = "https://redis-server-08s1.onrender.com";
 
 // Normalize game names
 function normalizeSteamName(name) {
@@ -53,7 +54,7 @@ function normalizeGameTitle(title) {
     .join(" ");
 }
 
-function sortGamesDsc(response) {
+function sortGamesAsc(response) {
   const sortedGames = response.sort((a, b) => {
     const dateA = a.published_at || 0;
     const dateB = b.published_at || 0;
@@ -94,7 +95,9 @@ async function getAppId(gameName) {
   const name = normalizeSteamName(gameName);
   console.log(name);
   try {
-    const response = await fetch(`http://localhost:3001/getAppId/${name}`);
+    const response = await fetch(
+      `${REDIS_SERVER_URL}/getAppId/${encodeURIComponent(name)}`
+    );
     if (!response.ok) {
       throw new Error("Game not found");
     }
@@ -110,7 +113,7 @@ async function getAppId(gameName) {
 // Retrieve gameID by making request with requested gameName
 async function getGameID(gameName) {
   try {
-    const response = await fetch("http://localhost:3000/igdb/search", {
+    const response = await fetch(`${PROXY_MANAGER_URL}/igdb/search`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -128,7 +131,7 @@ async function getGameID(gameName) {
 
     const data = await response.json();
 
-    const sortedGames = sortGamesDsc(data);
+    const sortedGames = sortGamesAsc(data);
 
     // If data is null or not structured properly
     if (!data || !Array.isArray(data)) {
@@ -192,7 +195,7 @@ async function getGameDetails(gameID, appId) {
     }
 
     // Rest of the IGDB code remains the same
-    const igdbResponse = await fetch("http://localhost:3000/igdb/games", {
+    const igdbResponse = await fetch(`${PROXY_MANAGER_URL}/igdb/games`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -249,7 +252,7 @@ async function getGameDetails(gameID, appId) {
     if (!appId && steamURL) {
       const appId = getAppIdFromSteamUrl(steamURL);
       console.log("Added new appID!");
-      const putAppIdResponse = await fetch("http://localhost:3001/addAppId", {
+      const putAppIdResponse = await fetch(`${REDIS_SERVER_URL}/addAppId`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -289,7 +292,7 @@ async function getGameDetails(gameID, appId) {
 // Check validity of response
 async function checkResponse(game) {
   try {
-    const response = await fetch("http://localhost:3000/igdb/games", {
+    const response = await fetch(`${PROXY_MANAGER_URL}/igdb/games`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -343,7 +346,7 @@ async function getGameIDStrict(
   console.log("Game Title:", gameTitle);
 
   try {
-    const response = await fetch("http://localhost:3000/igdb/search", {
+    const response = await fetch(`${PROXY_MANAGER_URL}/igdb/search`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -360,7 +363,7 @@ async function getGameIDStrict(
 
     const data = await response.json();
 
-    const sortedGames = sortGamesDsc(data);
+    const sortedGames = sortGamesAsc(data);
     console.log("Sorted Games:", sortedGames);
 
     // Normalize input for comparison
@@ -462,26 +465,21 @@ async function processGame(gameName, appId) {
 // Listen for messages from content.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "toggleServer") {
-    const { enabled } = request;
+    const endpoint = request.enabled ? "/start-server" : "/stop-server";
 
-    // Determine the endpoint based on the toggle state
-    const endpoint = enabled ? "start-server" : "stop-server";
-
-    // Send requests to both servers in parallel
-    Promise.all([
-      fetch(`http://localhost:4000/${endpoint}`, { method: "POST" }),
-      fetch(`http://localhost:3001/${endpoint}`, { method: "POST" }),
-    ])
-      .then((responses) =>
-        Promise.all(responses.map((response) => response.text()))
-      )
-      .then((data) => {
-        console.log("Bootstrap server response:", data[0]);
-        console.log("Second server response:", data[1]);
-        sendResponse({ success: true, data });
+    fetch(`${PROXY_MANAGER_URL}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    })
+      .then((response) => response.text())
+      .then((text) => {
+        if (response.ok) {
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: text });
+        }
       })
       .catch((error) => {
-        console.error("Error toggling servers:", error);
         sendResponse({ success: false, error: error.message });
       });
 

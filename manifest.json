@@ -3,7 +3,14 @@
   "name": "Game Scanner",
   "version": "1.0",
   "description": "Hover over a game title on Twitch to see its details.",
-  "permissions": ["tabs", "activeTab", "scripting", "storage"],
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage",
+    "https://gamescanner-extension.onrender.com/*",
+    "https://redis-server-08s1.onrender.com/*"
+  ],
   "host_permissions": [
     "https://store.steampowered.com/*",
     "https://api.twitch.tv/*",
