@@ -17,11 +17,13 @@ const BOOTSTRAP_PORT = process.env.PORT || 4000;
 
 const corsOptions = {
   origin: ["chrome-extension://fmoediidgemllljmlblddhhakmiomcoc"],
-  methods: ["GET", "POST", "HEAD"],
+  methods: ["GET", "POST", "HEAD", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
 };
 
 bootstrapApp.use(cors(corsOptions));
+bootstrapApp.options("*", cors());
 
 // Initialize Redis and auto-start proxy if needed
 let server = null;
@@ -57,8 +59,7 @@ bootstrapApp.post("/stop-server", async (req, res) => {
       server = null;
       console.log("Proxy server stopped");
 
-      // Force close remaining connections
-      server.closeAllConnections && server.closeAllConnections();
+      server.closeAllConnections();
 
       res.send("Server stopped");
     });
