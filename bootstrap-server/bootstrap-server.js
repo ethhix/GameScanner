@@ -71,7 +71,7 @@ bootstrapApp.post("/stop-server", async (req, res) => {
 
 bootstrapApp.get("/status", async (req, res) => {
   try {
-    const isRunning = server !== null && server.listening;
+    const isRunning = proxyServer !== null && proxyServer.listening;
     const redisState = await client.get("server:running");
 
     res.json({
