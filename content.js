@@ -26,7 +26,9 @@ const validPlatforms = [
   "Linux",
   "Mac",
 ];
+
 const statusButton = document.querySelector("#toggleSwitch");
+let isExtensionEnabled = false;
 
 let previousGameTitle = null;
 const hoverContainer = document.createElement("div");
@@ -41,6 +43,15 @@ hoverContainer.style.maxWidth = "300px";
 hoverContainer.style.zIndex = "1000";
 document.body.appendChild(hoverContainer);
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "toggleVisibility") {
+    isExtensionEnabled = message.isEnabled;
+    if (!isExtensionEnabled) {
+      hoverContainer.style.display = "none";
+    }
+  }
+});
+
 const xboxIconUrl = chrome.runtime.getURL("./assets/icons/xbox-icon.png");
 const playstationIconUrl = chrome.runtime.getURL(
   "./assets/icons/playstation-icon.png"
@@ -53,6 +64,11 @@ const nintendoIconUrl = chrome.runtime.getURL(
 );
 
 function updateGameInfo(gameData, appId, isFound) {
+  if (!isExtensionEnabled) {
+    hoverContainer.style.display = "none";
+    return;
+  }
+
   if (!gameData || !isFound) {
     hoverContainer.innerHTML = `<strong>Game Not Found</strong>`;
     return;
@@ -149,61 +165,83 @@ function updateGameInfo(gameData, appId, isFound) {
 `;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const PROXY_MANAGER_URL = "https://gamescanner-extension.onrender.com";
+document.addEventListener("DOMContentLoaded", async () => {
   const statusButton = document.querySelector("#toggleSwitch");
+  const SERVER_URL = "https://proxy-server-j4qa.onrender.com";
 
   if (!statusButton) {
     console.error("Toggle element not found!");
     return;
   }
 
-  // Initial state: disable until we know status
-  statusButton.disabled = true;
+  // Function to check server status
+  async function checkStatus() {
+    try {
+      const response = await fetch(`${SERVER_URL}/status`);
+      const data = await response.json();
+      statusButton.checked = data.enabled;
+      statusButton.disabled = false;
 
-  // Fetch server status and update toggle
-  function updateServerStatus() {
-    fetch(`${PROXY_MANAGER_URL}/status`)
-      .then((response) => {
-        if (!response.ok) throw new Error("Server unreachable");
-        return response.json();
-      })
-      .then((data) => {
-        statusButton.checked = data.running;
-        statusButton.disabled = false; // Enable toggle once status is known
-      })
-      .catch((error) => {
-        console.error("Status check failed:", error);
-        statusButton.disabled = true;
+      // Send message to content script about the current state
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "toggleVisibility",
+          isEnabled: data.enabled,
+        });
       });
+    } catch (error) {
+      console.error("Error checking status:", error);
+      statusButton.disabled = true;
+    }
   }
 
-  // Initial status check
-  updateServerStatus();
+  // Function to toggle server state
+  async function toggleServer(enabled) {
+    try {
+      const endpoint = enabled ? "/start-server" : "/stop-server";
+      const response = await fetch(`${SERVER_URL}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to toggle server state");
+      }
+
+      // Send message to content script about the state change
+      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+        chrome.tabs.sendMessage(tabs[0].id, {
+          action: "toggleVisibility",
+          isEnabled: enabled,
+        });
+      });
+
+      await checkStatus();
+    } catch (error) {
+      console.error("Error toggling server:", error);
+      statusButton.checked = !enabled;
+      statusButton.disabled = false;
+    }
+  }
 
   // Toggle handler
   statusButton.addEventListener("change", (event) => {
     const enabled = event.target.checked;
-    statusButton.disabled = true; // Disable during transition
-
-    chrome.runtime.sendMessage(
-      { action: "toggleServer", enabled },
-      (response) => {
-        if (response?.success) {
-          // Refresh status after 1 second to confirm
-          setTimeout(updateServerStatus, 1000);
-        } else {
-          console.error("Toggle failed:", response?.error);
-          statusButton.checked = !enabled;
-          statusButton.disabled = true;
-          setTimeout(updateServerStatus, 5000); // Retry after 5 seconds
-        }
-      }
-    );
+    statusButton.disabled = true;
+    toggleServer(enabled);
   });
+
+  // Check initial status when page loads
+  checkStatus();
 });
 
 function retrieveGameData() {
+  if (!isExtensionEnabled) {
+    hoverContainer.style.display = "none";
+    return;
+  }
   const gameTitleElement = document.querySelector(
     'a[data-a-target="stream-game-link"]'
   );
@@ -234,7 +272,12 @@ function retrieveGameData() {
                 if (!gameDataResponse.gameData.price) {
                   gameDataResponse.gameData.price = "Price unavailable";
                 }
-                updateGameInfo(gameDataResponse.gameData, appId, true);
+                updateGameInfo(
+                  gameDataResponse.gameData,
+                  appId,
+                  true,
+                  isExtensionEnabled
+                );
               } else {
                 console.error("Failed to retrieve game data.");
                 updateGameInfo(
@@ -246,7 +289,8 @@ function retrieveGameData() {
                     first_release_date: "Unknown",
                   },
                   appId,
-                  false
+                  false,
+                  isExtensionEnabled
                 );
               }
             }
@@ -265,6 +309,7 @@ function positionHoverContainer(targetElement) {
 
 function addEventListeners(gameTitleElement) {
   const onMouseEnter = () => {
+    if (!isExtensionEnabled) return;
     positionHoverContainer(gameTitleElement);
     hoverContainer.style.display = "block";
   };
@@ -280,6 +325,7 @@ function addEventListeners(gameTitleElement) {
 }
 
 const observer = new MutationObserver(() => {
+  if (!isExtensionEnabled) return;
   const gameTitleElement = document.querySelector(
     'a[data-a-target="stream-game-link"]'
   );
