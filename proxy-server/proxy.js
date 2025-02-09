@@ -16,23 +16,14 @@ let authorization = process.env.AUTHORIZATION;
 
 const corsOptions = {
   origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
-  methods: "POST",
+  methods: ["POST", "GET"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
 app.use(express.json());
 app.use(express.text({ type: "text/plain" }));
 app.use(cors(corsOptions));
-
-app.use(async (req, res, next) => {
-  if (!isEnabled) {
-    return res.status(503).json({
-      error: "Service disabled",
-      retryAfter: "30",
-    });
-  }
-  next();
-});
+app.options("*", cors(corsOptions));
 
 // Automatically refresh authorization token
 async function refreshAuthorizationToken() {
@@ -84,6 +75,16 @@ app.get("/status", cors(corsOptions), async (req, res) => {
     console.error("Error checking status:", error);
     res.status(500).json({ error: "Failed to check server status" });
   }
+});
+
+app.use(async (req, res, next) => {
+  if (!isEnabled) {
+    return res.status(503).json({
+      error: "Service disabled",
+      retryAfter: "30",
+    });
+  }
+  next();
 });
 
 // Request to search for gameID of a specific game
