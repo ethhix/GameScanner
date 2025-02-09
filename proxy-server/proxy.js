@@ -6,10 +6,8 @@ let fetch;
 (async () => {
   fetch = (await import("node-fetch")).default;
 })();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-let serverEnabled = true;
 
 const clientID = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
@@ -24,30 +22,6 @@ const corsOptions = {
 app.use(express.json());
 app.use(express.text({ type: "text/plain" }));
 app.use(cors(corsOptions));
-
-app.post("/enable-server", (req, res) => {
-  serverEnabled = true;
-  res.json({ status: "Server enabled" });
-});
-
-app.post("/disable-server", (req, res) => {
-  serverEnabled = false;
-  res.json({ status: "Server disabled" });
-});
-
-app.get("/server-status", (req, res) => {
-  res.json({ enabled: serverEnabled });
-});
-
-app.use((req, res, next) => {
-  if (!serverEnabled) {
-    return res.status(503).json({
-      error: "Service unavailable",
-      message: "Proxy server is currently disabled",
-    });
-  }
-  next();
-});
 
 // Automatically refresh authorization token
 async function refreshAuthorizationToken() {
