@@ -2,7 +2,6 @@ require("dotenv").config(); // Load environment variables
 const express = require("express");
 const cors = require("cors");
 let fetch;
-let isEnabled = true;
 
 (async () => {
   fetch = (await import("node-fetch")).default;
@@ -38,54 +37,6 @@ async function refreshAuthorizationToken() {
 
 app.options("/igdb/search", cors(corsOptions));
 app.options("/igdb/games", cors(corsOptions));
-
-app.post("/start-server", cors(corsOptions), async (req, res) => {
-  try {
-    isEnabled = true;
-    res.json({
-      status: "enabled",
-      message: "Server is now accepting requests",
-    });
-  } catch (error) {
-    console.error("Error enabling server:", error);
-    res.status(500).json({ error: "Failed to enable server" });
-  }
-});
-
-app.post("/stop-server", cors(corsOptions), async (req, res) => {
-  try {
-    isEnabled = false;
-    res.json({
-      status: "disabled",
-      message: "Server is now rejecting requests",
-    });
-  } catch (error) {
-    console.error("Error disabling server:", error);
-    res.status(500).json({ error: "Failed to disable server" });
-  }
-});
-
-app.get("/status", cors(corsOptions), async (req, res) => {
-  try {
-    res.json({
-      enabled: isEnabled,
-      status: isEnabled ? "active" : "inactive",
-    });
-  } catch (error) {
-    console.error("Error checking status:", error);
-    res.status(500).json({ error: "Failed to check server status" });
-  }
-});
-
-app.use(async (req, res, next) => {
-  if (!isEnabled) {
-    return res.status(503).json({
-      error: "Service disabled",
-      retryAfter: "30",
-    });
-  }
-  next();
-});
 
 // Request to search for gameID of a specific game
 app.post("/igdb/search", async (req, res) => {
