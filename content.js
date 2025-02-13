@@ -9,6 +9,7 @@ const ignoreGameTitle = [
   "Travel & Outdoors",
   "Creative",
   "Software & Game Development",
+  "Software and Game Development",
   "Animals, Aquariums, and Zoos",
   "Games + Demos",
   "Retro",
@@ -28,9 +29,11 @@ const validPlatforms = [
 ];
 
 const statusButton = document.querySelector("#toggleSwitch");
-let isExtensionEnabled = false;
+let isExtensionEnabled; // Determines if the extension is enabled or not
 
-let previousGameTitle = null;
+let previousGameTitle = null; // Stores previous game title
+
+// Create hoverContainer to be used to display game data being retrieved
 const hoverContainer = document.createElement("div");
 hoverContainer.style.position = "absolute";
 hoverContainer.style.backgroundColor = "#583994";
@@ -43,15 +46,61 @@ hoverContainer.style.maxWidth = "300px";
 hoverContainer.style.zIndex = "1000";
 document.body.appendChild(hoverContainer);
 
+// Messaging in order to control the display of the hover container
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "toggleVisibility") {
     isExtensionEnabled = message.isEnabled;
     if (!isExtensionEnabled) {
       hoverContainer.style.display = "none";
+    } else {
+      // Immediately check for game data when enabled
+      const gameTitleElement = document.querySelector(
+        'a[data-a-target="stream-game-link"]'
+      );
+      if (gameTitleElement) {
+        // Re-add the hover container if it was removed
+        if (!document.body.contains(hoverContainer)) {
+          document.body.appendChild(hoverContainer);
+        }
+        // Reset previous game title to force data refresh
+        previousGameTitle = null;
+        // Add event listeners and retrieve data
+        addEventListeners(gameTitleElement);
+        retrieveGameData();
+      }
     }
   }
 });
 
+// Used to disctate and enstate previous status of the extension
+async function initializeExtensionState() {
+  try {
+    const result = await chrome.storage.local.get(["extensionEnabled"]);
+    console.log("initial state:", result);
+    isExtensionEnabled = result.extensionEnabled ?? true; // Default to true if not set
+
+    // If extension is disabled, ensure hover container is hidden
+    if (!isExtensionEnabled && hoverContainer) {
+      hoverContainer.style.display = "none";
+    }
+
+    // Force a check of current game info if extension is enabled
+    if (isExtensionEnabled) {
+      const gameTitleElement = document.querySelector(
+        'a[data-a-target="stream-game-link"]'
+      );
+      if (gameTitleElement) {
+        retrieveGameData();
+      }
+    }
+  } catch (error) {
+    console.error("Error getting extension state:", error);
+  }
+}
+
+initializeExtensionState(); // Initialize the extensions state
+
+// Different platform icons
 const xboxIconUrl = chrome.runtime.getURL("./assets/icons/xbox-icon.png");
 const playstationIconUrl = chrome.runtime.getURL(
   "./assets/icons/playstation-icon.png"
@@ -63,6 +112,7 @@ const nintendoIconUrl = chrome.runtime.getURL(
   "./assets/icons/nintendo-icon.png"
 );
 
+// Used to display data retrieved onto the hover container
 function updateGameInfo(gameData, appId, isFound) {
   if (!isExtensionEnabled) {
     hoverContainer.style.display = "none";
@@ -167,26 +217,62 @@ function updateGameInfo(gameData, appId, isFound) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const statusButton = document.querySelector("#toggleSwitch");
-  const SERVER_URL = "https://proxy-server-j4qa.onrender.com";
 
   if (!statusButton) {
     console.error("Toggle element not found!");
     return;
   }
 
-  // Function to check server status
+  // Function to save status
+  async function saveStatus(enabled) {
+    try {
+      await chrome.storage.local.set({ extensionEnabled: enabled });
+      console.log("Status saved:", enabled);
+    } catch (error) {
+      console.error("Error saving status:", error);
+    }
+  }
+
+  // Function to get previous status
+  async function getPreviousStatus() {
+    try {
+      const result = await chrome.storage.local.get(["extensionEnabled"]);
+      return result.extensionEnabled ?? true; // Default to true if not set
+    } catch (error) {
+      console.error("Error getting previous status:", error);
+      return true; // Default to true on error
+    }
+  }
+
+  // Function to check extension status
   async function checkStatus() {
     try {
-      const response = await fetch(`${SERVER_URL}/status`);
-      const data = await response.json();
-      statusButton.checked = data.enabled;
+      const prevEnabled = await getPreviousStatus();
+
+      // Set the toggle position immediately based on stored state
+      statusButton.checked = prevEnabled;
+
+      if (!prevEnabled) {
+        statusButton.disabled = false;
+
+        chrome.tabs.query(
+          { active: true, currentWindow: true },
+          function (tabs) {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: "toggleVisibility",
+              isEnabled: false,
+            });
+          }
+        );
+        return;
+      }
+
       statusButton.disabled = false;
 
-      // Send message to content script about the current state
       chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
         chrome.tabs.sendMessage(tabs[0].id, {
           action: "toggleVisibility",
-          isEnabled: data.enabled,
+          isEnabled: prevEnabled,
         });
       });
     } catch (error) {
@@ -194,51 +280,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       statusButton.disabled = true;
     }
   }
+  // Toggle handler
+  statusButton.addEventListener("change", async (event) => {
+    const enabled = event.target.checked;
+    statusButton.disabled = true; // Temporarily disable while processing
 
-  // Function to toggle server state
-  async function toggleServer(enabled) {
     try {
-      const endpoint = enabled ? "/start-server" : "/stop-server";
-      const response = await fetch(`${SERVER_URL}${endpoint}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      await saveStatus(enabled);
 
-      if (!response.ok) {
-        throw new Error("Failed to toggle server state");
-      }
-
-      // Send message to content script about the state change
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {
+      // Notify all Twitch tabs about the state change
+      const twitchTabs = await chrome.tabs.query({ url: "*://*.twitch.tv/*" });
+      twitchTabs.forEach((tab) => {
+        chrome.tabs.sendMessage(tab.id, {
           action: "toggleVisibility",
           isEnabled: enabled,
         });
       });
 
-      await checkStatus();
+      statusButton.disabled = false;
     } catch (error) {
-      console.error("Error toggling server:", error);
+      console.error("Error toggling extension:", error);
       statusButton.checked = !enabled;
       statusButton.disabled = false;
     }
-  }
-
-  // Toggle handler
-  statusButton.addEventListener("change", (event) => {
-    const enabled = event.target.checked;
-    statusButton.disabled = true;
-    toggleServer(enabled);
   });
 
-  // Check initial status when page loads
+  // Check initial status when popup opens
   checkStatus();
 });
 
+// Used to retrieve the data by sending messages to background.js to execute data fetching functions
 function retrieveGameData() {
   if (!isExtensionEnabled) {
+    // if the extension is disabled then no need to send requests
     hoverContainer.style.display = "none";
     return;
   }
@@ -278,6 +352,7 @@ function retrieveGameData() {
                   true,
                   isExtensionEnabled
                 );
+                console.log(gameDataResponse.gameData);
               } else {
                 console.error("Failed to retrieve game data.");
                 updateGameInfo(
@@ -301,6 +376,7 @@ function retrieveGameData() {
   }
 }
 
+// Position the hover container under the game category
 function positionHoverContainer(targetElement) {
   const rect = targetElement.getBoundingClientRect();
   hoverContainer.style.top = `${rect.bottom + window.scrollY}px`;
