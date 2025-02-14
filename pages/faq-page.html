@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frequently Asked Questions - GameScanner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geo:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Jersey+10&family=Jersey+15&family=Jersey+20&family=Kumbh+Sans:wght@100..900&family=Pixelify+Sans:wght@400..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/pages/faq-page-styles.css" />
+  </head>
+  <body>
+    <main class="faq-container">
+      <header>
+        <h1>GameScanner Frequently Asked Questions</h1>
+        <p class="subtitle">
+          Find answers to common questions about using GameScanner. Refresh your
+          knowledge or troubleshoot issues with our comprehensive FAQ.
+        </p>
+      </header>
+
+      <section class="faq-content">
+        <article class="faq-item">
+          <details open>
+            <summary class="question">
+              Why does GameScanner show an empty square?
+            </summary>
+            <div class="answer">
+              <p>GameScanner might show an empty square temporarily because:</p>
+              <ul>
+                <li>It's gathering fresh data from multiple sources</li>
+                <li>Your connection might be slightly slow</li>
+                <li>We're processing complex game information</li>
+              </ul>
+              <p>
+                <strong
+                  >Solution refresh the page if it takes more than 30
+                  seconds.</strong
+                >
+              </p>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">
+              What data does GameScanner display?
+            </summary>
+            <div class="answer">
+              <p>
+                GameScanner provides comprehensive game information including:
+              </p>
+              <ul>
+                <li>Game Title: The official name as listed on Steam</li>
+                <li>Release Date: When the game was officially launched</li>
+                <li>Current Price: Including any active discounts or sales</li>
+                <li>Genres: Game categories and types</li>
+                <li>Platforms: Available systems (Windows, Mac, Linux)</li>
+                <li>
+                  Store Links: Direct access to:
+                  <ul>
+                    <li>Steam store page</li>
+                    <li>Official game website</li>
+                    <li>GOG store (when available)</li>
+                    <li>Epic Games Store (when available)</li>
+                  </ul>
+                </li>
+              </ul>
+              <p>
+                <strong>Note:</strong> The availability of information may vary
+                depending on the game and its presence on different platforms.
+              </p>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">
+              How does GameScanner handle pricing data?
+            </summary>
+            <div class="answer">
+              <p>Our pricing information comes directly from the Steam API</p>
+              <ul>
+                <li>
+                  Each time you visit a Twitch page containing a game title,
+                  GameScanner automatically fetches the current pricing data
+                  directly from Steam's official API
+                </li>
+                <li>
+                  This ensures you always see the most up-to-date pricing,
+                  including any ongoing sales or discounts
+                </li>
+                <li>
+                  For games available on multiple platforms, we prioritize Steam
+                  pricing data for consistency
+                </li>
+              </ul>
+              <p>
+                <strong>Note:</strong> If a game isn't available on Steam or the
+                API request fails, we'll indicate "Price not available"
+              </p>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">
+              Where does the game information come from?
+            </summary>
+            <div class="answer">
+              <p>We aggregate data from multiple trusted sources:</p>
+              <ul>
+                <li>Official publisher APIs</li>
+                <li>IGDB (Internet Game Database)</li>
+                <li>Steam Web API</li>
+              </ul>
+              <p>
+                <strong>Note:</strong> If a game cannot be found, this will be
+                indiciated by the GameScanner displaying "Game Not Found"
+              </p>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">How do I report bugs or issues?</summary>
+            <div class="answer">
+              <p>Please use our dedicated bug reporting system:</p>
+              <ol>
+                <li>Click the bug icon in the extension toolbar</li>
+                <li>Fill out the detailed form</li>
+                <li>Include screenshots if possible</li>
+                <li>Submit your report</li>
+              </ol>
+              <p>We typically respond within 48 hours.</p>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">Does GameScanner work offline?</summary>
+            <div class="answer">
+              <p>GameScanner requires an internet connection to:</p>
+              <ul>
+                <li>Fetch live pricing data</li>
+                <li>Update game information</li>
+                <li>Verify store availability</li>
+              </ul>
+            </div>
+          </details>
+        </article>
+
+        <article class="faq-item">
+          <details>
+            <summary class="question">
+              Why isn't a price showing for some games?
+            </summary>
+            <div class="answer">
+              <p>A price might not appear for several reasons:</p>
+              <ul>
+                <li>The game isn't available on Steam</li>
+                <li>
+                  For some games the steam API does not contain the price.
+                </li>
+                <li>The game has been removed from the Steam store</li>
+                <li>Temporary API connection issues</li>
+              </ul>
+              <p>
+                If you believe this is an error, please report it using our bug
+                reporting system.
+              </p>
+            </div>
+          </details>
+        </article>
+        <article class="faq-item">
+          <details>
+            <summary class="question">
+              How do I disable or remove GameScanner?
+            </summary>
+            <div class="answer">
+              <p>To manage GameScanner:</p>
+              <ul>
+                <li>
+                  Temporary disable: Click the extension icon and use the toggle
+                  switch
+                </li>
+                <li>
+                  Remove completely: Right-click the extension icon and select
+                  "Remove from Chrome"
+                </li>
+                <li>
+                  You can also manage extensions through chrome://extensions
+                </li>
+              </ul>
+              <p>
+                <strong>Note:</strong> Disabling the extension will not delete
+                any settings or data.
+              </p>
+            </div>
+          </details>
+        </article>
+        <article class="faq-item">
+          <details>
+            <summary class="question">What browsers are supported?</summary>
+            <div class="answer">
+              <p>Currently, GameScanner is available for:</p>
+              <ul>
+                <li>Google Chrome</li>
+                <li>Microsoft Edge</li>
+                <li>Other Chromium-based browsers (like Brave or Opera)</li>
+              </ul>
+              <p>
+                <strong>Note:</strong> Support for Firefox and other browsers
+                may be added in future updates.
+              </p>
+            </div>
+          </details>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

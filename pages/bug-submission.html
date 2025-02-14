@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bug Submission Form</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geo:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Jersey+10&family=Jersey+15&family=Jersey+20&family=Kumbh+Sans:wght@100..900&family=Pixelify+Sans:wght@400..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="/lib/hcaptcha.js" async defer></script>
+    <script src="../lib/emailjs.js"></script>
+    <link rel="stylesheet" href="/pages/bug-submission-styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="header-content">
+          <h1>Bug report form</h1>
+        </div>
+        <p class="subtitle">
+          Use this form to report any bugs or issues you encounter.
+        </p>
+      </header>
+
+      <form>
+        <div class="form-group">
+          <label for="bug-title">Title <span class="required">*</span></label>
+          <input
+            type="text"
+            id="bug-title"
+            name="bug-title"
+            required
+            placeholder="Enter a title"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="brief-description"
+            >Brief description of the issue
+            <span class="required">*</span></label
+          >
+          <input
+            type="text"
+            id="brief-description"
+            name="brief-description"
+            placeholder="e.g., Game info not displaying when hovering over stream"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="description"
+            >Steps to reproduce the issue <span class="required">*</span></label
+          >
+          <p class="helper-text">Please be as detailed as possible!</p>
+          <textarea
+            name="description"
+            id="description"
+            placeholder="Please describe the bug in detail. Include steps to reproduce it, what you expected to happen, and what actually occurred."
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="game-input">Game <span class="required">*</span></label>
+          <input
+            type="text"
+            id="game-input"
+            name="game-input"
+            placeholder="Enter game name"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="severity-input">Severity of the issue</label>
+          <select name="severity-input" id="severity-input" required>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+
+        <!-- <div class="form-group">
+          <label for="screenshot">Screenshot of the issue</label>
+          <div class="file-upload-area">
+            <input
+              type="file"
+              id="screenshot"
+              name="screenshot"
+              class="file-input"
+            />
+            <div class="file-upload-placeholder">
+              <p>
+                Drag & drop a file or <span class="browse-text">browse</span>
+              </p>
+            </div>
+          </div>
+        </div> -->
+
+        <div
+          class="h-captcha"
+          data-sitekey="25b42da2-26d0-4196-bdde-4a76a2b6d008"
+        ></div>
+
+        <button type="submit" class="submitButton">Submit Report</button>
+      </form>
+    </div>
+    <script src="/handleBugSubmission.js"></script>
+  </body>
+</html>
