@@ -1,5 +1,3 @@
-# GameScanner-Extension
-
 # GameScanner for Twitch
 
 Enhance your Twitch viewing experience with instant game information at your fingertips! This Chrome extension provides valuable game details right on the Twitch page when you hover over the game category.
