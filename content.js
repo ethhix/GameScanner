@@ -251,30 +251,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Set the toggle position immediately based on stored state
       statusButton.checked = prevEnabled;
-
-      if (!prevEnabled) {
-        statusButton.disabled = false;
-
-        chrome.tabs.query(
-          { active: true, currentWindow: true },
-          function (tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-              action: "toggleVisibility",
-              isEnabled: false,
-            });
-          }
-        );
-        return;
-      }
-
       statusButton.disabled = false;
-
-      chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-        chrome.tabs.sendMessage(tabs[0].id, {
-          action: "toggleVisibility",
-          isEnabled: prevEnabled,
-        });
-      });
     } catch (error) {
       console.error("Error checking status:", error);
       statusButton.disabled = true;
@@ -320,7 +297,10 @@ function retrieveGameData() {
     'a[data-a-target="stream-game-link"]'
   );
 
-  if (gameTitleElement) {
+  if (
+    gameTitleElement &&
+    !ignoreGameTitle.includes(gameTitleElement.textContent)
+  ) {
     const currentGameTitle = gameTitleElement.textContent;
     if (currentGameTitle !== previousGameTitle) {
       console.log(`Game title changed: ${currentGameTitle}`);
