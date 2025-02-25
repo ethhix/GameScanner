@@ -1,9 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "Game Scanner",
+  "name": "GameScanner",
   "version": "1.0",
-  "description": "Hover over a game title on Twitch to see its details.",
-  "permissions": ["tabs", "activeTab", "scripting", "storage"],
+  "description": "Instantly view game details, prices, and store links for games being streamed on Twitch. Hover to see platforms, genres, and more!",
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "permissions": ["tabs", "storage"],
   "host_permissions": [
     "https://store.steampowered.com/*",
     "https://api.twitch.tv/*",
@@ -27,7 +30,11 @@
         "assets/icons/playstation-icon.png",
         "assets/icons/nintendo-icon.png",
         "assets/icons/apple-icon.png",
-        "assets/icons/linux-icon.png"
+        "assets/icons/linux-icon.png",
+        "pages/bug-submission.html",
+        "handleBugSubmission.js",
+        "lib/hcaptcha.js",
+        "lib/emailjs.js"
       ],
       "matches": ["https://www.twitch.tv/*"]
     }
