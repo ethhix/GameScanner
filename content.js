@@ -50,6 +50,7 @@ document.body.appendChild(hoverContainer);
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "toggleVisibility") {
     isExtensionEnabled = message.isEnabled;
+    console.log(isExtensionEnabled);
     if (!isExtensionEnabled) {
       hoverContainer.style.display = "none";
     } else {
@@ -76,7 +77,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 async function initializeExtensionState() {
   try {
     const result = await chrome.storage.local.get(["extensionEnabled"]);
-    console.log("initial state:", result);
+    //console.log("initial state:", result);
     isExtensionEnabled = result.extensionEnabled ?? true; // Default to true if not set
 
     // If extension is disabled, ensure hover container is hidden
@@ -113,7 +114,7 @@ const nintendoIconUrl = chrome.runtime.getURL(
 );
 
 // Used to display data retrieved onto the hover container
-function updateGameInfo(gameData, appId, isFound) {
+function updateGameInfo(gameData, appId, isFound, isExtensionEnabled) {
   if (!isExtensionEnabled) {
     hoverContainer.style.display = "none";
     return;
@@ -202,7 +203,7 @@ function updateGameInfo(gameData, appId, isFound) {
   iconContainer.className = "iconContainer";
   iconContainer.innerHTML = icons.join("");
 
-  //console.log(gameData.price);
+  console.log(gameData.price);
 
   // Render the hover container
   hoverContainer.innerHTML = `
@@ -227,7 +228,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function saveStatus(enabled) {
     try {
       await chrome.storage.local.set({ extensionEnabled: enabled });
-      console.log("Status saved:", enabled);
+      //console.log("Status saved:", enabled);
     } catch (error) {
       console.error("Error saving status:", error);
     }
@@ -322,6 +323,7 @@ function retrieveGameData() {
             },
             (gameDataResponse) => {
               if (gameDataResponse?.gameData) {
+                console.log(gameDataResponse.gameData);
                 // Handle missing price information
                 if (!gameDataResponse.gameData.price) {
                   gameDataResponse.gameData.price = "Price unavailable";
@@ -363,7 +365,32 @@ function positionHoverContainer(targetElement) {
   hoverContainer.style.left = `${rect.left + window.scrollX}px`;
 }
 
+let currentListeners = {
+  gameTitleEnter: null,
+  gameTitleLeave: null,
+  hoverContainerEnter: null,
+  hoverContainerLeave: null,
+};
+
+function removeEventListeners(element) {
+  if (currentListeners.gameTitleEnter) {
+    element.removeEventListener("mouseenter", currentListeners.gameTitleEnter);
+    element.removeEventListener("mouseleave", currentListeners.gameTitleLeave);
+    hoverContainer.removeEventListener(
+      "mouseenter",
+      currentListeners.hoverContainerEnter
+    );
+    hoverContainer.removeEventListener(
+      "mouseleave",
+      currentListeners.hoverContainerLeave
+    );
+  }
+}
+
 function addEventListeners(gameTitleElement) {
+  // Remove any existing listeners first
+  removeEventListeners(gameTitleElement);
+
   const onMouseEnter = () => {
     if (!isExtensionEnabled) return;
     positionHoverContainer(gameTitleElement);
@@ -373,6 +400,12 @@ function addEventListeners(gameTitleElement) {
   const onMouseLeave = () => {
     hoverContainer.style.display = "none";
   };
+
+  // Store references to the new listeners
+  currentListeners.gameTitleEnter = onMouseEnter;
+  currentListeners.gameTitleLeave = onMouseLeave;
+  currentListeners.hoverContainerEnter = onMouseEnter;
+  currentListeners.hoverContainerLeave = onMouseLeave;
 
   gameTitleElement.addEventListener("mouseenter", onMouseEnter);
   hoverContainer.addEventListener("mouseenter", onMouseEnter);
@@ -390,7 +423,7 @@ const observer = new MutationObserver(() => {
     const currentGameTitle = gameTitleElement.textContent;
 
     if (ignoreGameTitle.includes(currentGameTitle)) {
-      hoverContainer.remove();
+      hoverContainer.style.display = "none";
     } else {
       if (!document.body.contains(hoverContainer)) {
         document.body.appendChild(hoverContainer);
