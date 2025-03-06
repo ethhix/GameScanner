@@ -30,10 +30,10 @@ const romanToNumber = {
   XV: "15",
 };
 
-const PROXY_MANAGER_URL = "https://gamescanner-extension.onrender.com";
-const REDIS_SERVER_URL = "https://redis-server-08s1.onrender.com";
+const PROXY_MANAGER_URL = "https://proxy-server-j4qa.onrender.com";
+const REDIS_SERVER_URL = "https://redis-server-toxf.onrender.com";
 
-// Normalize game names
+// Normalize steam names
 function normalizeSteamName(name) {
   return name
     .toLowerCase()
@@ -43,6 +43,7 @@ function normalizeSteamName(name) {
     .trim();
 }
 
+//Normalize games titles
 function normalizeGameTitle(title) {
   return title
     .toLowerCase()
@@ -87,13 +88,15 @@ function formatGameTitleStrict(input) {
     )
     .join(" ");
 
+  //console.log(finalOutput);
+
   return finalOutput;
 }
 
 // Retrieve AppID of requested game
 async function getAppId(gameName) {
   const name = normalizeSteamName(gameName);
-  console.log(name);
+  //console.log(name);
   try {
     const response = await fetch(
       `${REDIS_SERVER_URL}/getAppId/${encodeURIComponent(name)}`
@@ -102,61 +105,10 @@ async function getAppId(gameName) {
       throw new Error("Game not found");
     }
     const data = await response.json();
-    console.log("AppID:", data.appID);
+    //console.log("AppID:", data.appID);
     return data.appID;
   } catch (err) {
     console.error("Error fetching AppID:", err);
-    return null;
-  }
-}
-
-// Retrieve gameID by making request with requested gameName
-async function getGameID(gameName) {
-  try {
-    const response = await fetch(`${PROXY_MANAGER_URL}/igdb/search`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "text/plain",
-      },
-      body: `fields game, name; search "${gameName}";`, // Search for gameId and name
-    });
-
-    // If response fails:
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Server error:", errorData.error); // Print error
-      return null;
-    }
-
-    const data = await response.json();
-
-    const sortedGames = sortGamesAsc(data);
-
-    // If data is null or not structured properly
-    if (!data || !Array.isArray(data)) {
-      console.error("Invalid response format");
-      return null;
-    }
-
-    // Normalize gameName, remove special characters
-    const normalizedInput = normalizeGameTitle(gameName);
-
-    const candidates = []; // Stores potential gameIds containing valid data
-    for (const element of sortedGames) {
-      const normalizedElementName = normalizeGameTitle(element.name);
-      console.log(normalizedElementName + " " + normalizedInput);
-      if (
-        normalizedElementName === normalizedInput &&
-        element.game !== undefined &&
-        !ignoreGameList.includes(element.game)
-      ) {
-        candidates.push(element.game);
-      }
-    }
-    return candidates.length > 0 ? candidates : null;
-  } catch (err) {
-    console.error("Error fetching game ID:", err);
     return null;
   }
 }
@@ -184,7 +136,7 @@ async function getGameDetails(gameID, appId) {
         `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=us`
       );
       const steamData = await steamResponse.json();
-      console.log(steamData);
+      //console.log(steamData);
       if (steamData[appId]?.success) {
         if (steamData[appId].data?.is_free) {
           gameData.price = "Free";
@@ -204,7 +156,7 @@ async function getGameDetails(gameID, appId) {
     });
 
     const igdbData = await igdbResponse.json();
-    console.log(igdbData);
+    //console.log(igdbData);
 
     // Check if IGDB data is valid
     if (!igdbData?.length) {
@@ -248,10 +200,10 @@ async function getGameDetails(gameID, appId) {
       }
     }
 
-    console.log(appId + " " + steamURL);
+    //console.log(appId + " " + steamURL);
     if (!appId && steamURL) {
       const appId = getAppIdFromSteamUrl(steamURL);
-      console.log("Added new appID!");
+      //console.log("Added new appID!");
       const putAppIdResponse = await fetch(`${REDIS_SERVER_URL}/addAppId`, {
         method: "PUT",
         headers: {
@@ -268,8 +220,8 @@ async function getGameDetails(gameID, appId) {
         return;
       }
 
-      const responseData = await putAppIdResponse.json();
-      console.log("AppID added successfully:", responseData);
+      //const responseData = await putAppIdResponse.json();
+      //console.log("AppID added successfully:", responseData);
     }
 
     // Process Release Date
@@ -301,7 +253,7 @@ async function checkResponse(game) {
     });
 
     const data = await response.json();
-    console.log(data);
+    //console.log(data);
 
     if (data.length == 0) {
       console.warn(`No data found for game ID: ${game}`);
@@ -309,19 +261,8 @@ async function checkResponse(game) {
       return false;
     }
 
-    let websiteCheck = false;
-
-    if (data[0].websites) {
-      for (let i = 0; i < data[0].websites.length; i++) {
-        if (websiteIDs.includes(data[0].websites[i].category)) {
-          websiteCheck = true;
-          break;
-        }
-      }
-    }
-
     // If data does not contain some information, ignore it
-    if (!data[0] || !data[0].name || !data[0].genres || !websiteCheck) {
+    if (!data[0] || !data[0].name || !data[0].genres || !data[0].websites) {
       ignoreGameList.push(game);
       return false;
     }
@@ -334,25 +275,23 @@ async function checkResponse(game) {
 }
 
 // Strict gameID search
-async function getGameIDStrict(
-  gameName,
-  completedFormattedCheck = false,
-  completedNormalCheck = false
-) {
-  const gameTitle = !completedFormattedCheck
-    ? formatGameTitleStrict(gameName)
-    : gameName;
+async function getGameID(gameName, options = {}) {
+  const { isFormatted = false, attemptNormalSearch = false } = options;
 
-  console.log("Game Title:", gameTitle);
+  // Only format if not already formatted
+  const gameTitle = !isFormatted ? formatGameTitleStrict(gameName) : gameName;
 
   try {
+    const queryBody = attemptNormalSearch
+      ? `fields game, name, published_at; search "${gameTitle}";`
+      : `fields game, name, published_at; where name = "${gameTitle}";`;
     const response = await fetch(`${PROXY_MANAGER_URL}/igdb/search`, {
       method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "text/plain",
       },
-      body: `fields game, name, published_at; where name = "${gameTitle}";`,
+      body: queryBody,
     });
 
     if (!response.ok) {
@@ -362,34 +301,26 @@ async function getGameIDStrict(
     }
 
     const data = await response.json();
-
     const sortedGames = sortGamesAsc(data);
-    console.log("Sorted Games:", sortedGames);
 
-    // Normalize input for comparison
-    const normalizedInput = !completedFormattedCheck
-      ? gameTitle
-          .toLowerCase()
-          .replace(/[^a-z0-9 ]/g, "")
-          .replace(/ii/g, "2")
-          .replace(/iii/g, "3")
-          .replace(/\s+/g, " ")
-          .trim()
-      : gameTitle;
+    // Normalize input consistently
+    const normalizedInput = gameTitle
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, "")
+      .replace(/ii/g, "2")
+      .replace(/iii/g, "3")
+      .replace(/\s+/g, " ")
+      .trim();
 
     const candidates = [];
     for (const element of sortedGames) {
-      const normalizedElementName = !completedFormattedCheck
-        ? element.name
-            .toLowerCase()
-            .replace(/[^a-z0-9 ]/g, "")
-            .replace(/ii/g, "2")
-            .replace(/iii/g, "3")
-            .replace(/\s+/g, " ")
-            .trim()
-        : element.name;
-
-      console.log("Comparing:", normalizedElementName, "vs", normalizedInput);
+      const normalizedElementName = element.name
+        .toLowerCase()
+        .replace(/[^a-z0-9 ]/g, "")
+        .replace(/ii/g, "2")
+        .replace(/iii/g, "3")
+        .replace(/\s+/g, " ")
+        .trim();
 
       if (
         normalizedElementName === normalizedInput &&
@@ -400,43 +331,49 @@ async function getGameIDStrict(
       }
     }
 
-    console.log("Candidates:", candidates);
-
-    // Candidates are not found
+    // If no candidates found, try alternative approaches
     if (candidates.length === 0) {
-      if (!completedFormattedCheck) {
-        console.log(
-          "No candidates found with formatted check. Retrying with normal check..."
-        );
-        return getGameIDStrict(gameName, true, false);
-      } else if (!completedNormalCheck) {
-        // Run function again with not formatting
-        console.log(
-          "No candidates found with normal check. Retrying without formatting..."
-        );
-        return getGameIDStrict(gameName, true, true);
-      } else {
-        // Both checks completed, return null
-        console.log("No candidates found after both checks.");
+      // If not yet formatted, try with formatting
+      if (!isFormatted) {
+        return getGameID(gameName, {
+          isFormatted: true,
+          attemptNormalSearch,
+        });
+      }
+      // If formatted but not tried normal search, try that
+      else if (!attemptNormalSearch) {
+        // Implement different search logic for normal search
+        return getGameID(gameName, {
+          isFormatted: true,
+          attemptNormalSearch: true,
+        });
+      }
+      // All attempts failed
+      else {
         return null;
       }
     }
+
     return candidates.length > 0 ? candidates : null;
   } catch (err) {
     console.error("Error fetching game ID:", err);
     return null;
   }
 }
+
 async function processGame(gameName, appId) {
+  // Clear the ignore list at the start of processing each new game
+  ignoreGameList = [];
+
   try {
-    let candidates = await getGameIDStrict(gameName, false, false);
-    console.log(candidates);
+    let candidates = await getGameID(gameName, {
+      isFormatted: false,
+      attemptNormalSearch: false,
+    });
+
+    //console.log(candidates);
     if (!candidates) {
-      candidates = await getGameID(gameName);
-      console.log(candidates + " retry attempt " + gameName);
-      if (!candidates) {
-        return null;
-      }
+      return null;
     }
 
     for (const gameID of candidates) {
@@ -448,12 +385,9 @@ async function processGame(gameName, appId) {
           if (!details.price) {
             details.price = "Price unavailable";
           }
-          console.log("Valid Game Details:", details);
+          //console.log("Valid Game Details:", details);
           return details;
         }
-      } else {
-        console.log(`Skipping invalid game ID: ${gameID}`);
-        ignoreGameList.push(gameID);
       }
     }
     return null;
@@ -464,42 +398,32 @@ async function processGame(gameName, appId) {
 }
 // Listen for messages from content.js
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === "toggleServer") {
-    const endpoint = request.enabled ? "/start-server" : "/stop-server";
-
-    fetch(`${PROXY_MANAGER_URL}${endpoint}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-    })
-      .then((response) => response.text())
-      .then((text) => {
-        if (response.ok) {
-          sendResponse({ success: true });
-        } else {
-          sendResponse({ success: false, error: text });
-        }
+  if (request.action === "getAppId") {
+    //console.log("Received request for game:", request.gameName);
+    getAppId(request.gameName)
+      .then((appID) => {
+        //console.log("Sending AppID:", appID);
+        sendResponse({ appID, success: true });
       })
       .catch((error) => {
-        sendResponse({ success: false, error: error.message });
+        console.error("Error getting AppID:", error);
+        sendResponse({ error: error.message, success: false });
       });
-
-    return true;
-  }
-  if (request.action === "getAppId") {
-    console.log("Received request for game:", request.gameName);
-    getAppId(request.gameName).then((appID) => {
-      console.log("Sending AppID:", appID);
-      sendResponse({ appID });
-    });
     return true;
   } else if (request.action === "getGameData") {
-    console.log("Received request for game:", request.gameName);
+    //console.log("Received request for game:", request.gameName);
     // Process game data through IGDB and Steam
-    getAppId(request.gameName).then((appID) => {
-      processGame(request.gameName, appID).then((gameData) => {
-        sendResponse({ gameData });
+    getAppId(request.gameName)
+      .then((appID) => {
+        return processGame(request.gameName, appID);
+      })
+      .then((gameData) => {
+        sendResponse({ gameData, success: true });
+      })
+      .catch((error) => {
+        console.error("Error processing game:", error);
+        sendResponse({ error: error.message, success: false });
       });
-    });
     return true;
   }
 });
