@@ -1,3 +1,4 @@
+// List of Twitch Caetgories to not display game data for
 const ignoreGameTitle = [
   "Just Chatting",
   "I'm Only Sleeping",
@@ -19,6 +20,7 @@ const ignoreGameTitle = [
   "Virtual Casino",
 ];
 
+// Valid platforms to include
 const validPlatforms = [
   "PlayStation",
   "Xbox",
@@ -28,23 +30,94 @@ const validPlatforms = [
   "Mac",
 ];
 
-const statusButton = document.querySelector("#toggleSwitch");
+const statusButton = document.querySelector("#toggleSwitch"); // Extension control toggle
 let isExtensionEnabled; // Determines if the extension is enabled or not
-
 let previousGameTitle = null; // Stores previous game title
+let loadingStartTime = 0;
 
-// Create hoverContainer to be used to display game data being retrieved
+// Loading icon styles
+const spinnerCSS = `
+.lds-ring {
+  display: inline-block;
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto;
+}
+.lds-ring div {
+  box-sizing: border-box;
+  display: block;
+  position: absolute;
+  width: 51px;
+  height: 51px;
+  margin: 6px;
+  border: 6px solid #9147ff;
+  border-radius: 50%;
+  animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  border-color: #9147ff transparent transparent transparent;
+}
+.lds-ring div:nth-child(1) {
+  animation-delay: -0.45s;
+}
+.lds-ring div:nth-child(2) {
+  animation-delay: -0.3s;
+}
+.lds-ring div:nth-child(3) {
+  animation-delay: -0.15s;
+}
+@keyframes lds-ring {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}`;
+
+// Add the CSS to the document
+const styleElement = document.createElement("style");
+styleElement.textContent = spinnerCSS;
+document.head.appendChild(styleElement);
+
+// Different platform icons
+const xboxIconUrl = chrome.runtime.getURL("./assets/icons/xbox-icon.png");
+const playstationIconUrl = chrome.runtime.getURL(
+  "./assets/icons/playstation-icon.png"
+);
+const appleIconUrl = chrome.runtime.getURL("./assets/icons/apple-icon.png");
+const linuxIconUrl = chrome.runtime.getURL("./assets/icons/linux-icon.png");
+const windowsIconUrl = chrome.runtime.getURL("./assets/icons/windows-icon.png");
+const nintendoIconUrl = chrome.runtime.getURL(
+  "./assets/icons/nintendo-icon.png"
+);
+
 const hoverContainer = document.createElement("div");
 hoverContainer.style.position = "absolute";
-hoverContainer.style.backgroundColor = "#583994";
-hoverContainer.style.border = "1px solid #ccc";
-hoverContainer.style.padding = "10px";
-hoverContainer.style.borderRadius = "5px";
-hoverContainer.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+hoverContainer.style.zIndex = "9999";
 hoverContainer.style.display = "none";
+hoverContainer.style.minWidth = "250px";
 hoverContainer.style.maxWidth = "300px";
-hoverContainer.style.zIndex = "1000";
+hoverContainer.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)";
+hoverContainer.style.borderRadius = "4px";
+hoverContainer.style.fontSize = "14px";
+hoverContainer.style.fontFamily =
+  "Roobert, 'Helvetica Neue', Helvetica, Arial, sans-serif";
 document.body.appendChild(hoverContainer);
+
+// Show loading state function
+function showLoadingState() {
+  if (!isExtensionEnabled) return;
+
+  loadingStartTime = Date.now();
+
+  // Create a loading spinner
+  hoverContainer.innerHTML = `
+    <div style="text-align: center; padding: 15px; background-color: rgba(23, 20, 31, 0.95); border-radius: 4px;">
+      <div class="lds-ring"><div></div><div></div><div></div><div></div></div>
+      <p style="margin-top: 15px; color: white; font-size: 14px;">Loading game data...</p>
+    </div>
+  `;
+}
 
 // Messaging in order to control the display of the hover container
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -73,7 +146,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
-// Used to disctate and enstate previous status of the extension
+// Used to dictate and enstate previous status of the extension
 async function initializeExtensionState() {
   try {
     const result = await chrome.storage.local.get(["extensionEnabled"]);
@@ -101,18 +174,6 @@ async function initializeExtensionState() {
 
 initializeExtensionState(); // Initialize the extensions state
 
-// Different platform icons
-const xboxIconUrl = chrome.runtime.getURL("./assets/icons/xbox-icon.png");
-const playstationIconUrl = chrome.runtime.getURL(
-  "./assets/icons/playstation-icon.png"
-);
-const appleIconUrl = chrome.runtime.getURL("./assets/icons/apple-icon.png");
-const linuxIconUrl = chrome.runtime.getURL("./assets/icons/linux-icon.png");
-const windowsIconUrl = chrome.runtime.getURL("./assets/icons/windows-icon.png");
-const nintendoIconUrl = chrome.runtime.getURL(
-  "./assets/icons/nintendo-icon.png"
-);
-
 // Used to display data retrieved onto the hover container
 function updateGameInfo(gameData, appId, isFound, isExtensionEnabled) {
   if (!isExtensionEnabled) {
@@ -120,8 +181,22 @@ function updateGameInfo(gameData, appId, isFound, isExtensionEnabled) {
     return;
   }
 
+  const loadingDuration = Date.now() - loadingStartTime;
+  const minLoadingTime = 500;
+
+  if (loadingDuration < minLoadingTime) {
+    setTimeout(() => {
+      updateGameInfo(gameData, appId, isFound, isExtensionEnabled);
+    }, minLoadingTime - loadingDuration);
+    return;
+  }
+
   if (!gameData || !isFound) {
-    hoverContainer.innerHTML = `<strong>Game Not Found</strong>`;
+    hoverContainer.innerHTML = `
+      <div style="text-align: center; padding: 15px; background-color: rgba(23, 20, 31, 0.95); border-radius: 4px;">
+        <strong style="color: white;">Game Not Found</strong>
+      </div>
+    `;
     return;
   }
 
@@ -137,15 +212,15 @@ function updateGameInfo(gameData, appId, isFound, isExtensionEnabled) {
           ? "View Epic Games Link"
           : "View GoG Link";
 
-      return `<p style="margin-right: 5px;"><a href=${website.url} target="_blank">${urlLabel}</a></p>`;
+      return `<p style="margin-right: 5px;"><a href=${website.url} target="_blank" style="color: #bf94ff;">${urlLabel}</a></p>`;
     })
     .join(" ");
 
-  console.log(appId);
+  //console.log(appId);
 
   if (!websiteLinks && appId) {
     const steamLink = `https://store.steampowered.com/app/${appId}/`;
-    websiteLinks = `<p><a href=${steamLink} target="_blank">View Steam Link</a></p>`;
+    websiteLinks = `<p><a href=${steamLink} target="_blank" style="color: #bf94ff;">View Steam Link</a></p>`;
   }
 
   const filteredIcons = gameData.platforms.filter((platform) => {
@@ -203,17 +278,25 @@ function updateGameInfo(gameData, appId, isFound, isExtensionEnabled) {
   iconContainer.className = "iconContainer";
   iconContainer.innerHTML = icons.join("");
 
-  console.log(gameData.price);
+  //console.log(gameData.price);
 
   // Render the hover container
   hoverContainer.innerHTML = `
-    ${iconContainer.outerHTML}
-  <h5><strong>${gameData.name}</strong></h5>
-  <p>Price: ${gameData.price}</p>
-  <p>Genres: ${gameData.genres.join(", ") || "N/A"}</p>
-  <p>Release Date: ${gameData.first_release_date}</p>
-  <div style="display: flex; flex-wrap: wrap;">${websiteLinks}</div>
-`;
+    <div style="padding: 15px; background-color: rgba(23, 20, 31, 0.95); border-radius: 4px;">
+      ${iconContainer.outerHTML}
+      <h5 style="margin: 10px 0; color: white;"><strong>${
+        gameData.name
+      }</strong></h5>
+      <p style="margin: 5px 0; color: white;">Price: ${gameData.price}</p>
+      <p style="margin: 5px 0; color: white;">Genres: ${
+        gameData.genres.join(", ") || "N/A"
+      }</p>
+      <p style="margin: 5px 0; color: white;">Release Date: ${
+        gameData.first_release_date
+      }</p>
+      <div style="display: flex; flex-wrap: wrap; margin-top: 10px;">${websiteLinks}</div>
+    </div>
+  `;
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -307,12 +390,16 @@ function retrieveGameData() {
       console.log(`Game title changed: ${currentGameTitle}`);
       previousGameTitle = currentGameTitle;
 
+      showLoadingState(); // Display loading state
+
+      positionHoverContainer(gameTitleElement);
+
       // Get the AppID for the game
       chrome.runtime.sendMessage(
         { action: "getAppId", gameName: currentGameTitle },
         (response) => {
           const appId = response?.appID || null;
-          console.log(appId);
+          //console.log(appId);
 
           // Get game data regardless of AppID existence
           chrome.runtime.sendMessage(
@@ -323,7 +410,7 @@ function retrieveGameData() {
             },
             (gameDataResponse) => {
               if (gameDataResponse?.gameData) {
-                console.log(gameDataResponse.gameData);
+                //console.log(gameDataResponse.gameData);
                 // Handle missing price information
                 if (!gameDataResponse.gameData.price) {
                   gameDataResponse.gameData.price = "Price unavailable";
@@ -334,7 +421,7 @@ function retrieveGameData() {
                   true,
                   isExtensionEnabled
                 );
-                console.log(gameDataResponse.gameData);
+                //console.log(gameDataResponse.gameData);
               } else {
                 console.error("Failed to retrieve game data.");
                 updateGameInfo(
@@ -344,6 +431,7 @@ function retrieveGameData() {
                     genres: [],
                     websites: [],
                     first_release_date: "Unknown",
+                    platforms: [],
                   },
                   appId,
                   false,
@@ -365,32 +453,8 @@ function positionHoverContainer(targetElement) {
   hoverContainer.style.left = `${rect.left + window.scrollX}px`;
 }
 
-let currentListeners = {
-  gameTitleEnter: null,
-  gameTitleLeave: null,
-  hoverContainerEnter: null,
-  hoverContainerLeave: null,
-};
-
-function removeEventListeners(element) {
-  if (currentListeners.gameTitleEnter) {
-    element.removeEventListener("mouseenter", currentListeners.gameTitleEnter);
-    element.removeEventListener("mouseleave", currentListeners.gameTitleLeave);
-    hoverContainer.removeEventListener(
-      "mouseenter",
-      currentListeners.hoverContainerEnter
-    );
-    hoverContainer.removeEventListener(
-      "mouseleave",
-      currentListeners.hoverContainerLeave
-    );
-  }
-}
-
+// Adds event listeners to the hover container
 function addEventListeners(gameTitleElement) {
-  // Remove any existing listeners first
-  removeEventListeners(gameTitleElement);
-
   const onMouseEnter = () => {
     if (!isExtensionEnabled) return;
     positionHoverContainer(gameTitleElement);
@@ -400,12 +464,6 @@ function addEventListeners(gameTitleElement) {
   const onMouseLeave = () => {
     hoverContainer.style.display = "none";
   };
-
-  // Store references to the new listeners
-  currentListeners.gameTitleEnter = onMouseEnter;
-  currentListeners.gameTitleLeave = onMouseLeave;
-  currentListeners.hoverContainerEnter = onMouseEnter;
-  currentListeners.hoverContainerLeave = onMouseLeave;
 
   gameTitleElement.addEventListener("mouseenter", onMouseEnter);
   hoverContainer.addEventListener("mouseenter", onMouseEnter);
@@ -425,10 +483,11 @@ const observer = new MutationObserver(() => {
     if (ignoreGameTitle.includes(currentGameTitle)) {
       hoverContainer.style.display = "none";
     } else {
-      if (!document.body.contains(hoverContainer)) {
-        document.body.appendChild(hoverContainer);
-      }
       addEventListeners(gameTitleElement);
+      if (currentGameTitle !== previousGameTitle) {
+        showLoadingState();
+        positionHoverContainer(gameTitleElement);
+      }
       retrieveGameData();
     }
   }
