@@ -4,7 +4,7 @@ Enhance your Twitch viewing experience with instant game information at your fin
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-![Image](https://github.com/user-attachments/assets/4463c54a-8307-4ae1-ac93-3c669bffbb36)
+![Image](https://github.com/user-attachments/assets/4df655b7-7ac7-4101-9a9b-24e4562322b2)
 
 ## 🎮 Features
 
