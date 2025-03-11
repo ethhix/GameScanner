@@ -51,7 +51,7 @@ app.post("/igdb/search", async (req, res) => {
       headers: {
         Accept: "application/json",
         "Client-ID": clientID,
-        Authorization: authorization,
+        Authorization: `Bearer ${authorization}`,
       },
       body: req.body,
     });
@@ -66,6 +66,7 @@ app.post("/igdb/search", async (req, res) => {
     }
 
     const data = await response.json(); // Retrieve response
+    console.log(data);
     res
       .set({
         "Content-Type": "application/json",
@@ -94,7 +95,7 @@ app.post("/igdb/games", async (req, res) => {
       headers: {
         Accept: "application/json",
         "Client-ID": clientID,
-        Authorization: authorization,
+        Authorization: `Bearer ${authorization}`,
       },
       body: req.body,
     });
