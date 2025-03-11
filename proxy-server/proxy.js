@@ -1,6 +1,8 @@
 require("dotenv").config(); // Load environment variables
 const express = require("express");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
 let fetch;
 
 (async () => {
@@ -12,6 +14,8 @@ const PORT = process.env.PORT || 3000;
 const clientID = process.env.CLIENT_ID;
 const clientSecret = process.env.CLIENT_SECRET;
 let authorization = process.env.AUTHORIZATION;
+const renderApiKey = process.env.RENDER_APIKEY;
+const serviceID = process.env.SERVICE_ID;
 
 const corsOptions = {
   origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
@@ -25,14 +29,64 @@ app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 // Automatically refresh authorization token
+async function updateAuthToken(serviceId, newToken) {
+  const envVarKey = "AUTHORIZATION";
+
+  const response = await fetch(
+    `https://api.render.com/v1/services/${serviceId}/env-vars/${envVarKey}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${renderApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        value: newToken,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(
+      `Failed to update Render environment variable: ${error.message}`
+    );
+  }
+
+  return response.json();
+}
+
 async function refreshAuthorizationToken() {
-  const response = await fetch("https://id.twitch.tv/oauth2/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `client_id=${clientID}&client_secret=${clientSecret}&grant_type=client_credentials`,
-  });
-  const data = await response.json();
-  authorization = `Bearer ${data.access_token}`;
+  try {
+    // Call Twitch API to get a new token
+    const response = await fetch("https://id.twitch.tv/oauth2/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `client_id=${clientID}&client_secret=${clientSecret}&grant_type=client_credentials`,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(
+        `Failed to refresh token: ${error.message || "Unknown error"}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("Twitch API Response:", data);
+
+    // Update in-memory variable
+    authorization = `Bearer ${data.access_token}`;
+
+    // Update Render environment variable
+    await updateAuthToken(`${serviceID}`, data.access_token);
+    console.log("Token updated in Render environment variable.");
+
+    return authorization;
+  } catch (error) {
+    console.error("Error updating token:", error.message);
+    throw error;
+  }
 }
 
 app.options("/igdb/search", cors(corsOptions));
@@ -66,7 +120,7 @@ app.post("/igdb/search", async (req, res) => {
     }
 
     const data = await response.json(); // Retrieve response
-    console.log(data);
+    //console.log(data);
     res
       .set({
         "Content-Type": "application/json",
