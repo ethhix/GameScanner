@@ -21,7 +21,7 @@ client.on("reconnecting", () => console.log("Redis reconnecting..."));
 // CORS configuration
 const corsOptions = {
   origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
-  methods: "GET, POST, PUT",
+  methods: ["GET", "POST", "PUT"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
 
@@ -36,6 +36,13 @@ app.get("/getAppId/:gameName", async (req, res) => {
   const gameName = req.params.gameName;
   try {
     const appID = await client.get(gameName); // Fetch appID from Redis
+
+    res.header({
+      "Access-Control-Allow-Origin":
+        "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+      Vary: "Origin",
+    });
+
     if (appID) {
       res.json({ appID }); // Return appID if found
     } else {
