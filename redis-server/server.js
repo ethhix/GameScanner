@@ -4,7 +4,7 @@ const cors = require("cors");
 
 const app = express();
 
-// Create Redis client
+// Redis client
 const client = redis.createClient({
   username: "default", // Default username for Redis
   password: process.env.REDIS_PASSWORD,
