@@ -3,13 +3,6 @@ emailjs.init("E3xmfQX6FFdg7c45a");
 document.querySelector("form").addEventListener("submit", function (event) {
   event.preventDefault();
 
-  // Verify hCaptcha first
-  const hCaptchaResponse = hcaptcha.getResponse();
-  if (!hCaptchaResponse) {
-    alert("Please complete the captcha first!");
-    return;
-  }
-
   // Get form data with correct IDs
   const formData = {
     title: document.getElementById("bug-title").value,
@@ -17,7 +10,6 @@ document.querySelector("form").addEventListener("submit", function (event) {
     description: document.getElementById("description").value,
     game: document.getElementById("game-input")?.value || "Not specified",
     severity: document.getElementById("severity-input").value,
-    captchaResponse: hCaptchaResponse,
   };
 
   // Show loading state
@@ -42,7 +34,6 @@ document.querySelector("form").addEventListener("submit", function (event) {
 
       // Reset form
       document.querySelector("form").reset();
-      hcaptcha.reset();
 
       // Reset button
       submitButton.textContent = originalButtonText;
