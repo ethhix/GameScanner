@@ -1,8 +1,7 @@
 require("dotenv").config(); // Load environment variables
 const express = require("express");
 const cors = require("cors");
-const fs = require("fs");
-const path = require("path");
+
 let fetch;
 
 (async () => {
@@ -18,7 +17,7 @@ const renderApiKey = process.env.RENDER_APIKEY;
 const serviceID = process.env.SERVICE_ID;
 
 const corsOptions = {
-  origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+  origin: "chrome-extension://bhmmmhohnnccohmpdhhgpimchaiagddc",
   methods: ["POST", "GET"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
@@ -125,7 +124,7 @@ app.post("/igdb/search", async (req, res) => {
       .set({
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin":
-          "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+          "chrome-extension://bhmmmhohnnccohmpdhhgpimchaiagddc",
       })
       .json(data);
   } catch (error) {
@@ -167,7 +166,7 @@ app.post("/igdb/games", async (req, res) => {
       .set({
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin":
-          "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+          "chrome-extension://bhmmmhohnnccohmpdhhgpimchaiagddc",
       })
       .json(data);
   } catch (error) {
