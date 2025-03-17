@@ -4,7 +4,7 @@ const cors = require("cors");
 
 const app = express();
 
-// Redis client
+// Create Redis client
 const client = redis.createClient({
   username: "default", // Default username for Redis
   password: process.env.REDIS_PASSWORD,
@@ -20,7 +20,7 @@ client.on("reconnecting", () => console.log("Redis reconnecting..."));
 
 // CORS configuration
 const corsOptions = {
-  origin: "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+  origin: "chrome-extension://bhmmmhohnnccohmpdhhgpimchaiagddc",
   methods: ["GET", "POST", "PUT"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
@@ -39,7 +39,7 @@ app.get("/getAppId/:gameName", async (req, res) => {
 
     res.header({
       "Access-Control-Allow-Origin":
-        "chrome-extension://fmoediidgemllljmlblddhhakmiomcoc",
+        "chrome-extension://bhmmmhohnnccohmpdhhgpimchaiagddc",
       Vary: "Origin",
     });
 
@@ -73,10 +73,10 @@ app.put("/addAppId", async (req, res) => {
 
   try {
     await client.set(normalizedGameName, appId);
-    console.log(`Stored game: ${normalizedGameName}, appId: ${appId}`);
+    //console.log(`Stored game: ${normalizedGameName}, appId: ${appId}`);
     res.status(200).json({ message: "Game and appId added successfully" });
   } catch (err) {
-    console.error("Error storing data in Redis:", err);
+    //console.error("Error storing data in Redis:", err);
     res.status(500).json({ error: "Failed to store data in Redis" });
   }
 });
