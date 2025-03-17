@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GameScanner - For Twitch",
-  "version": "1.1.5",
+  "version": "1.2.5",
   "description": "Instantly view game details, prices, and store links for games being streamed on Twitch. Hover to see platforms, genres, and more!",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
@@ -11,7 +11,8 @@
     "https://store.steampowered.com/*",
     "https://api.twitch.tv/*",
     "https://api.igdb.com/*",
-    "https://proxy-server-j4qa.onrender.com/*"
+    "https://proxy-server-j4qa.onrender.com/*",
+    "https://redis-server-toxf.onrender.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -33,7 +34,6 @@
         "assets/icons/linux-icon.png",
         "pages/bug-submission.html",
         "handleBugSubmission.js",
-        "lib/hcaptcha.js",
         "lib/emailjs.js"
       ],
       "matches": ["https://www.twitch.tv/*"]
