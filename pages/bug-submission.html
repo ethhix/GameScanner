@@ -10,7 +10,6 @@
       href="https://fonts.googleapis.com/css2?family=Geo:ital@0;1&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Jersey+10&family=Jersey+15&family=Jersey+20&family=Kumbh+Sans:wght@100..900&family=Pixelify+Sans:wght@400..700&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap"
       rel="stylesheet"
     />
-    <script src="/lib/hcaptcha.js" async defer></script>
     <script src="../lib/emailjs.js"></script>
     <link rel="stylesheet" href="/pages/bug-submission-styles.css" />
   </head>
@@ -101,12 +100,9 @@
           </div>
         </div> -->
 
-        <div
-          class="h-captcha"
-          data-sitekey="25b42da2-26d0-4196-bdde-4a76a2b6d008"
-        ></div>
-
-        <button type="submit" class="submitButton">Submit Report</button>
+        <button type="submit" class="submitButton" data-theme="dark">
+          Submit Report
+        </button>
       </form>
     </div>
     <script src="/handleBugSubmission.js"></script>
