@@ -109,17 +109,25 @@ app.post("/igdb/search", async (req, res) => {
       body: req.body,
     });
 
+    // If token expired, refresh and retry once
+    if (response.status === 401) {
+      await refreshAuthorizationToken();
+      response = await fetch("https://api.igdb.com/v4/search", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Client-ID": clientID,
+          Authorization: authorization,
+        },
+        body: req.body,
+      });
+    }
+
     if (!response.ok) {
-      if (response.status === 401) {
-        // Check if we need new authorization
-        await refreshAuthorizationToken();
-        return res.status(401).json({ error: "Token expired. Please retry." });
-      }
       return res.status(response.status).json({ error: await response.text() });
     }
 
-    const data = await response.json(); // Retrieve response
-    //console.log(data);
+    const data = await response.json();
     res
       .set({
         "Content-Type": "application/json",
